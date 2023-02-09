@@ -1,0 +1,101 @@
+---
+title: 'Lab Week 5 Part 1: PCA'
+author: "Justine Lang"
+date: "2023-02-09"
+output: html_document
+---
+
+```{r setup, include=TRUE, message = FALSE, warning = FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning= FALSE)
+
+library(tidyverse)
+library(here)
+
+library(ggfortify)
+library(patchwork)
+
+library(readxl)
+library(gghighlight)
+library(lubridate)
+library(plotly)
+```
+
+# Part 1: Principal component analysis (PCA)
+
+```{r}
+hdi_data <- read_csv(here("data", "hdi_clean.csv")) %>% 
+  drop_na() %>% 
+  mutate(hdicode = factor(hdicode, levels = c('Low', 'Medium', 'High', 'Very High')))
+
+hdi_pca <- hdi_data %>% 
+  dplyr::select(where(is.numeric)) %>% 
+  scale() %>% 
+  prcomp()
+```
+
+```{r}
+loadings_df <- data.frame(hdi_pca$rotation * 8) %>% 
+  mutate(axis = row.names(.))
+
+new_pts_df <- data.frame(hdi_pca$x)
+
+ggplot() +
+  geom_point(data = new_pts_df, aes(x = PC1, y = PC2), color = 'blue') +
+  geom_segment(data = loadings_df, x = 0, y = 0,
+               aes(xend = PC1, yend = PC2, group = axis),
+               arrow = arrow(length = unit(.25, 'cm'))) +
+  geom_text(data = loadings_df,
+            aes(x = PC1, y = PC2, label = axis)) +
+  theme_minimal()
+```
+
+```{r}
+autoplot(hdi_pca, 
+         data = hdi_data,
+         loadings = TRUE,
+         colour = 'hdicode',
+         loadings.label = TRUE,
+         loadings.colour = 'black',
+         loadings.label.colour = 'black',
+         loadings.label.vjust = -0.5) +
+  scale_color_manual(values = c('red', 'orange', 'yellowgreen', 'darkgreen')) +
+  theme_minimal()
+```
+
+## Screeplot by hand
+
+```{r}
+sd_vec <- hdi_pca$sdev
+var_vec <- sd_vec^2
+pc_names <- colnames(hdi_pca$rotation)
+
+pct_expl_df <- data.frame(v = var_vec,
+                          pct_v = var_vec / sum(var_vec),
+                          pc = fct_inorder(pc_names)) %>% 
+  mutate(pct_lbl = paste0(round(pct_v * 100, 1), '%'))
+
+ggplot(pct_expl_df, aes(x = pc, y = v)) +
+  geom_col() +
+  geom_text(aes(label = pct_lbl), vjust = 0, nudge_y = .002) +
+  labs(x = 'Principal component', y = 'Variance explained')
+```
+
+```{r}
+screeplot(hdi_pca, type = 'lines')
+screeplot(hdi_pca, type = 'barplot')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
